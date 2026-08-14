@@ -29,6 +29,7 @@ const char *CG2_VERSION = "0.1.0";
 #define FLAG_BUFFER_SIZE 128
 #define FLAG_TITLE_BUFFER_SIZE 64
 
+
 typedef struct {
     bool show_fps;
     uint32_t scale;
@@ -158,7 +159,7 @@ void load_program(ProgramContext *context, uint8_t *program_bytes) {
     context->height = (uint32_t) read_le_i32(byte_ptr+8);
     byte_ptr += 12;
 
-    // Allocate memory
+    // Allocate program memory
     context->memory = calloc(context->memory_size, sizeof(int32_t));
     context->memory[CALL_STACK_POINTER_ADDRESS] = CALL_STACK_ADDRESS;
 
@@ -179,16 +180,14 @@ void load_program(ProgramContext *context, uint8_t *program_bytes) {
     }
 
     // Load data entries
-    byte_ptr++;
-    uint32_t data_entry_count = (uint32_t) read_le_i32(byte_ptr);
-    uint32_t data_entry_address = (uint32_t) read_le_i32(byte_ptr+4);
+    byte_ptr++;  // Skip code segment end opcode
+    uint32_t data_entry_address = (uint32_t) read_le_i32(byte_ptr);
+    uint32_t data_value_count = (uint32_t) read_le_i32(byte_ptr+4);
     byte_ptr += 8;
 
-    int32_t *memory_ptr = &context->memory[data_entry_address];
-    for (uint32_t i = 0; i < data_entry_count; i++) {
-        uint32_t entry_size = (uint32_t) read_le_i32(byte_ptr);
-        byte_ptr += 4;
-        for (uint32_t j = 0; j < entry_size; j++) {
+    if (data_entry_address > 0) {
+        int32_t *memory_ptr = &context->memory[data_entry_address];
+        for (uint32_t i = 0; i < data_value_count; i++) {
             *memory_ptr = read_le_i32(byte_ptr);
             byte_ptr += 4;
             memory_ptr++;
@@ -324,11 +323,36 @@ static inline int execute_program(ProgramContext *context) {
         ins_error |= set_mem(context, args[0], get_mem(context, &ins_error, args[1]) * get_mem(context, &ins_error, args[2]));
         goto dispatch;
     do_div:
-        ins_error |= set_mem(context, args[0], get_mem(context, &ins_error, args[1]) / get_mem(context, &ins_error, args[2]));
+        a = get_mem(context, &ins_error, args[1]);
+        b = get_mem(context, &ins_error, args[2]);
+
+        #ifdef G2_DEBUG
+            if (b == 0) {
+                ins_error = 1;
+                error("Division by zero");
+                goto dispatch;
+            }
+        #endif
+
+        int32_t q = a / b;
+        int32_t rem = a % b;
+        if (rem != 0 && ((rem < 0) ^ (b < 0))) {
+            q -= 1;
+        }
+        ins_error |= set_mem(context, args[0], q);
         goto dispatch;
     do_mod:
         a = get_mem(context, &ins_error, args[1]);
         b = get_mem(context, &ins_error, args[2]);
+
+        #ifdef G2_DEBUG
+            if (b == 0) {
+                ins_error = 1;
+                error("Division by zero");
+                goto dispatch;
+            }
+        #endif
+
         int32_t mod = a % b;
         if (mod != 0 && (mod < 0) ^ (b < 0)) {
             mod += b;
@@ -386,12 +410,6 @@ int program_loop(ProgramContext *context) {
     Uint64 last_frame_time = 0, start_frame_time = 0;
     int32_t delta_ms = 0;
 
-    SDL_Texture *canvas = SDL_CreateTexture(
-        context->renderer,
-        SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET,
-        context->width, context->height
-    );
-
     const Uint8 *keyboard = SDL_GetKeyboardState(NULL);
 
     bool running = true; 
@@ -409,8 +427,6 @@ int program_loop(ProgramContext *context) {
             }
         }
         SDL_PumpEvents();
-
-        SDL_SetRenderTarget(context->renderer, canvas);
         
         update_reserved_memory(context, keyboard, delta_ms);
         int execute_result = execute_program(context);
@@ -418,9 +434,8 @@ int program_loop(ProgramContext *context) {
             running = false;
         }
 
-        SDL_SetRenderTarget(context->renderer, NULL);
-        SDL_RenderCopy(context->renderer, canvas, NULL, NULL);
         SDL_RenderPresent(context->renderer);
+        SDL_RenderClear(context->renderer);
 
         uint64_t frame_time = SDL_GetTicks64() - start_frame_time;
         if (frame_time < target_frame_time) {

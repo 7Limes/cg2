@@ -12,6 +12,14 @@ A minimal ISA with builtin graphics designed to be simple to implement.
 - Includes arbitrary size 24 bit color window that updates at 60 fps
 - The program is executed once per frame starting at index 0 and ending when the program counter reaches the last instruction
 
+## Procedure for each Frame
+
+1. Calculate delta time
+2. Update reserved memory
+3. Execute program instructions
+4. Present the framebuffer
+5. Clear the framebuffer using the current color
+
 ## Reserved Memory
 
 - `0`: Constant zero (`0`) value
@@ -39,8 +47,8 @@ A minimal ISA with builtin graphics designed to be simple to implement.
 
 - `add dest, a, b`                $dest = $a + $b
 - `mul dest, a, b`                $dest = $a * $b
-- `div dest, a, b`                $dest = $a / $b
-- `mod dest, a, b`                $dest = $a % $b 
+- `div dest, a, b`                $dest = $a / $b (Truncates towards negative infinity)
+- `mod dest, a, b`                $dest = $a % $b (Keeps sign of denominator)
                                   $rdest = $a % $b
 
 - `cmp dest, a, b`                $dest =  1 if $a < $b

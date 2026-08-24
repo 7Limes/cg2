@@ -13,7 +13,6 @@ const char *CG2_VERSION = "0.1.0";
 #define G2_DEBUG
 
 #define FILE_SIGNATURE_LENGTH 2
-#define END_CODE_SEGMENT_OPCODE 0xff
 
 #define INSTRUCTION_SIZE 13
 
@@ -139,15 +138,6 @@ static inline void out_of_bounds_error(int32_t address) {
 }
 
 
-size_t get_instruction_count(uint8_t *code_segment_bytes) {
-    size_t count = 0;
-    for (uint8_t *byte_ptr = code_segment_bytes; *byte_ptr != END_CODE_SEGMENT_OPCODE; byte_ptr+=INSTRUCTION_SIZE) {
-        count++;
-    }
-    return count;
-}
-
-
 void load_program(ProgramContext *context, uint8_t *program_bytes) {
     uint8_t *byte_ptr = program_bytes;
 
@@ -164,7 +154,8 @@ void load_program(ProgramContext *context, uint8_t *program_bytes) {
     context->memory[CALL_STACK_POINTER_ADDRESS] = CALL_STACK_ADDRESS;
 
     // Load instructions
-    context->instruction_count = get_instruction_count(byte_ptr);
+    context->instruction_count = (uint32_t) read_le_i32(byte_ptr);
+    byte_ptr += 4;
     context->instructions = calloc(context->instruction_count, sizeof(Instruction));
 
     Instruction *instruction_ptr = context->instructions;
@@ -180,7 +171,6 @@ void load_program(ProgramContext *context, uint8_t *program_bytes) {
     }
 
     // Load data entries
-    byte_ptr++;  // Skip code segment end opcode
     uint32_t data_entry_address = (uint32_t) read_le_i32(byte_ptr);
     uint32_t data_value_count = (uint32_t) read_le_i32(byte_ptr+4);
     byte_ptr += 8;
@@ -442,6 +432,8 @@ int program_loop(ProgramContext *context) {
             SDL_Delay(target_frame_time - frame_time);
         }
     }
+
+    return 0;
 }
 
 

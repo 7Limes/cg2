@@ -11,6 +11,7 @@ A minimal ISA with builtin graphics designed to be simple to implement.
 - `ldi` used to load immediate values, all other instructions refer directly to memory slots
 - Includes arbitrary size 24 bit color window that updates 60 times per second
 - The program is executed once per frame starting at index 0 and ending when the program counter goes past the last instruction
+- On program start, external data can be loaded into program memory starting at a specific address (see [Binary Format](#binary-format))
 
 ## Procedure for each Frame
 
@@ -25,14 +26,14 @@ A minimal ISA with builtin graphics designed to be simple to implement.
 - `0`: Constant zero (`0`) value
 - `1`: Constant one (`1`) value
 - `2`: Constant negative one (`-1`) value
-- `3`: Control1 key
-- `4`: Control2 key
-- `5`: A key
-- `6`: B key
-- `7`: Up key
-- `8`: Down key
-- `9`: Left key
-- `10`: Right key
+- `3`: Control1 key (`0` = unpressed, `1` = pressed)
+- `4`: Control2 key (`0` = unpressed, `1` = pressed) 
+- `5`: A key (`0` = unpressed, `1` = pressed)
+- `6`: B key (`0` = unpressed, `1` = pressed)
+- `7`: Up key (`0` = unpressed, `1` = pressed)
+- `8`: Down key (`0` = unpressed, `1` = pressed)
+- `9`: Left key (`0` = unpressed, `1` = pressed)
+- `10`: Right key (`0` = unpressed, `1` = pressed)
 - `11`: Deltatime (ms)
 - `12-13`: Unused
 - `14`: Pseudoinstruction scratch register
@@ -40,6 +41,8 @@ A minimal ISA with builtin graphics designed to be simple to implement.
 - `16-31`: Call stack
 
 ## Instructions
+
+> **Note**: Dollar signs (`$`) are used to indicate memory references. For example, if `a = 5` and `b = 7`, then `$a = $b` means that the value stored at address `7` will be copied to address `5`.
 
 - `ldi dest, value`               $dest = value (Load immediate)
 - `rdi dest, src`                 $dest = $$src (Read indirect)
@@ -49,7 +52,6 @@ A minimal ISA with builtin graphics designed to be simple to implement.
 - `mul dest, a, b`                $dest = $a * $b
 - `div dest, a, b`                $dest = $a / $b (Truncates towards negative infinity)
 - `mod dest, a, b`                $dest = $a % $b (Keeps sign of denominator)
-                                  $rdest = $a % $b
 
 - `cmp dest, a, b`                $dest =  1 if $a < $b
                                            0 if $a == $b
@@ -63,11 +65,13 @@ A minimal ISA with builtin graphics designed to be simple to implement.
 
 ## Binary Format
 
+g2 binary files have the extension `.g2b` and are formatted according to the `Program` struct in the following C code:
+
 ```c
 struct Program {
     Header header;
     Instruction instructions[]
-    uint8_t code_segment_end;          // 0xff (Read instructions until a 0xff opcode is found)
+    uint32_t instruction_count;        // The number of instructions in the program
     uint32_t data_start_address;       // The address in memory to start loading data to
     uint32_t data_length;              // The number of data values
     int32_t data_values[data_length];  // The data values

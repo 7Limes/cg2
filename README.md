@@ -54,7 +54,7 @@ A minimal ISA with builtin graphics designed to be simple to implement.
 | `0x5` | `div dest, a, b` | $dest = $a / $b (truncates towards negative infinity) |
 | `0x6` | `mod dest, a, b` | $dest = $a % $b (keeps sign of denominator) |
 | `0x7` | `cmp dest, a, b` | $dest = 1 if $a < $b, 0 if $a == $b, -1 if $a > $b |
-| `0x8` | `jne index, a, b` | Jump to instruction index $index if $a != $b |
+| `0x8` | `jne index, a, b` | Set program counter to $index if $a != $b |
 | `0x9` | `col r, g, b` | Set current color to ($r, $g, $b), clamped to [0, 255] |
 | `0xA` | `pix x, y` | Draw a pixel at ($x, $y), ignore out of bounds |
 

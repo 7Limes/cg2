@@ -4,7 +4,7 @@ A minimal ISA with builtin graphics designed to be simple to implement.
 
 ## General Info
 
-- Single contiguous array of 32 bit signed integers
+- Memory is a contiguous array of 32 bit signed integers
     - This array is zeroed on program start
     - Minimum size of 32 slots
 - No registers
@@ -44,50 +44,69 @@ A minimal ISA with builtin graphics designed to be simple to implement.
 
 > **Note**: Dollar signs (`$`) are used to indicate memory references. For example, if `a = 5` and `b = 7`, then `$a = $b` means that the value stored at address `7` will be copied to address `5`.
 
-- `ldi dest, value`               $dest = value (Load immediate)
-- `rdi dest, src`                 $dest = $$src (Read indirect)
-- `sti dest, src`                 $$dest = $src (Store indirect)
+| Opcode | Syntax | Operation |
+|--------|--------|-----------|
+| `0x0` | `ldi dest, value` | $dest = value |
+| `0x1` | `rdi dest, src` | $dest = $$src |
+| `0x2` | `sti dest, src` | $$dest = $src |
+| `0x3` | `add dest, a, b` | $dest = $a + $b |
+| `0x4` | `mul dest, a, b` | $dest = $a * $b |
+| `0x5` | `div dest, a, b` | $dest = $a / $b (truncates towards negative infinity) |
+| `0x6` | `mod dest, a, b` | $dest = $a % $b (keeps sign of denominator) |
+| `0x7` | `cmp dest, a, b` | $dest = 1 if $a < $b, 0 if $a == $b, -1 if $a > $b |
+| `0x8` | `jne index, a, b` | Jump to instruction index $index if $a != $b |
+| `0x9` | `col r, g, b` | Set current color to ($r, $g, $b), clamped to [0, 255] |
+| `0xA` | `pix x, y` | Draw a pixel at ($x, $y), ignore out of bounds |
 
-- `add dest, a, b`                $dest = $a + $b
-- `mul dest, a, b`                $dest = $a * $b
-- `div dest, a, b`                $dest = $a / $b (Truncates towards negative infinity)
-- `mod dest, a, b`                $dest = $a % $b (Keeps sign of denominator)
 
-- `cmp dest, a, b`                $dest =  1 if $a < $b
-                                           0 if $a == $b
-                                          -1 if $a > $b
+## Loadtime Errors
 
-- `jne index, a, b`               Jump to $index if $a != $b  (Jump if not equal)
+- **Invalid Signature**: If the program signature does not match 'g2', terminate with an error.
+- **Not Enough Memory**: If the program specifies a memory size less than `32`, terminate with an error.
+- **Data Size Error**: If the span of data values exceeds memory bounds, terminate with an error.
 
-- `col r, g, b`                   Set the current color to ($r, $g, $b)
-- `pix x, y`                      Draw a pixel at ($x, $y)
+
+## Runtime Errors
+
+- **Zero Division**: If the denominator of a `div` or `mod` instruction is `0`, terminate with an error.
+- **Out of Bounds Access**: If any instruction or argument attempts to read an address less than `0` or greater than the amount of allocated memory, terminate with an error.
+- **Out of Bounds Instruction**: If the instruction index of a `jne` instruction is less than `0` or greater than the instruction count, terminate with an error.
 
 
 ## Binary Format
 
-g2 binary files have the extension `.g2b` and are formatted according to the `Program` struct in the following C code:
+g2 binary files have the extension `.g2b`. All integers are stored in little endian byte order. The files are formatted according to the `Program` struct in the following C code (**without padding**):
 
 ```c
 struct Program {
     Header header;
-    Instruction instructions[]
     uint32_t instruction_count;        // The number of instructions in the program
+    Instruction instructions[]
     uint32_t data_start_address;       // The address in memory to start loading data to
     uint32_t data_length;              // The number of data values
     int32_t data_values[data_length];  // The data values
 }
 
+// Size: 14 bytes
 struct Header {
     uint16_t signature;   // "g2"
-    int32_t memory_size;  // The amount of memory for the program
-    int32_t width;        // The width of the program window
-    int32_t height;       // The height of the program window
+    uint32_t memory_size;  // The amount of memory for the program
+    uint32_t width;        // The width of the program window
+    uint32_t height;       // The height of the program window
 }
 
+// Size: 13 bytes
 struct Instruction {
     uint8_t opcode;
-    int32_t args[3]
+    int32_t args[3];      // Not all instructions use 3 slots here
 }
 ```
 
 > **Note**: This format is documented in C structs for illustrative purposes only. The actual implementation need not use this exact code.
+
+
+## Miscellaneous Details
+
+- The current color should be preserved across frames.
+- Writing to reserved memory slots is technically allowed, but is discouraged since most of the values will be overwritten at the start of the next frame.
+- When using `add` and `mul` instructions, integers should be allowed to overflow and underflow.

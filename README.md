@@ -75,34 +75,36 @@ A minimal ISA with builtin graphics designed to be simple to implement.
 
 ## Binary Format
 
-g2 binary files have the extension `.g2b`. All integers are stored in little endian byte order. The files are formatted according to the `Program` struct in the following C code (**without padding**):
+g2 binary files have the extension `.g2b`. All multi-byte integers are stored in little-endian byte order. Fields are packed with no padding.
 
-```c
-struct Program {
-    Header header;
-    uint32_t instruction_count;        // The number of instructions in the program
-    Instruction instructions[]
-    uint32_t data_start_address;       // The address in memory to start loading data to
-    uint32_t data_length;              // The number of data values
-    int32_t data_values[data_length];  // The data values
-}
+### Header (14 bytes)
 
-// Size: 14 bytes
-struct Header {
-    uint16_t signature;   // "g2"
-    uint32_t memory_size;  // The amount of memory for the program
-    uint32_t width;        // The width of the program window
-    uint32_t height;       // The height of the program window
-}
+| Field | Type | Size | Description |
+|-------|------|------|-------------|
+| `signature` | `u16` | 2 bytes | Must equal `0x6732` (`"g2"`) |
+| `memory_size` | `u32` | 4 bytes | Amount of memory for the program |
+| `width` | `u32` | 4 bytes | Width of the program window |
+| `height` | `u32` | 4 bytes | Height of the program window |
 
-// Size: 13 bytes
-struct Instruction {
-    uint8_t opcode;
-    int32_t args[3];      // Not all instructions use 3 slots here
-}
-```
+### Instruction (13 bytes)
 
-> **Note**: This format is documented in C structs for illustrative purposes only. The actual implementation need not use this exact code.
+| Field | Type | Size | Description |
+|-------|------|------|-------------|
+| `opcode` | `u8` | 1 byte | Instruction opcode |
+| `arg0` | `i32` | 4 bytes | First argument |
+| `arg1` | `i32` | 4 bytes | Second argument |
+| `arg2` | `i32` | 4 bytes | Third argument (not always used) |
+
+### Program
+
+| Field | Type | Size | Description |
+|-------|------|------|-------------|
+| `header` | Header | 14 bytes | Program header (see above) |
+| `instruction_count` | `u32` | 4 bytes | Number of instructions |
+| `instructions` | Instruction[] | 13 * `instruction_count` bytes | Program instructions (see above) |
+| `data_start_address` | `u32` | 4 bytes | Memory address to begin loading data |
+| `data_length` | `u32` | 4 bytes | Number of data values |
+| `data_values` | `i32[]` | 4 * `data_length` bytes | Data values |
 
 
 ## Miscellaneous Details

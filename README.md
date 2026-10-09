@@ -62,6 +62,7 @@ A minimal ISA with builtin graphics designed to be simple to implement.
 ## Loadtime Errors
 
 - **Invalid Signature**: If the program signature does not match 'g2', terminate with an error.
+- **Invalid Window Size**: If the width or height of the program window is `0`, terminate with an error.
 - **Not Enough Memory**: If the program specifies a memory size less than `32`, terminate with an error.
 - **Data Size Error**: If the span of data values exceeds memory bounds, terminate with an error.
 
@@ -71,17 +72,18 @@ A minimal ISA with builtin graphics designed to be simple to implement.
 - **Zero Division**: If the denominator of a `div` or `mod` instruction is `0`, terminate with an error.
 - **Out of Bounds Access**: If any instruction or argument attempts to read an address less than `0` or greater than the amount of allocated memory, terminate with an error.
 - **Out of Bounds Instruction**: If the instruction index of a `jne` instruction is less than `0` or greater than the instruction count, terminate with an error.
+- **Unrecognized Instruction**: If an instruction has an opcode that is not present in the above table, terminate with an error.
 
 
 ## Binary Format
 
-g2 binary files have the extension `.g2b`. All multi-byte integers are stored in little-endian byte order. Fields are packed with no padding.
+g2 binary files have the extension `.g2b`. All multi-byte integers are stored in little-endian byte order unless stated otherwise. Fields are packed with no padding.
 
 ### Header (14 bytes)
 
 | Field | Type | Size | Description |
 |-------|------|------|-------------|
-| `signature` | `u16` | 2 bytes | Must equal `0x6732` (`"g2"`) |
+| `signature` | `u16` | 2 bytes | Must equal `0x6732` (`"g2"`) (big-endian) |
 | `memory_size` | `u32` | 4 bytes | Amount of memory for the program |
 | `width` | `u32` | 4 bytes | Width of the program window |
 | `height` | `u32` | 4 bytes | Height of the program window |
@@ -112,3 +114,4 @@ g2 binary files have the extension `.g2b`. All multi-byte integers are stored in
 - The current color should be preserved across frames.
 - Writing to reserved memory slots is technically allowed, but is discouraged since most of the values will be overwritten at the start of the next frame.
 - When using `add` and `mul` instructions, integers should be allowed to overflow and underflow.
+- The `jne` instruction can be used to end the frame immediately by jumping to `instruction_count`.
